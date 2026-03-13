@@ -29,16 +29,36 @@ jobs:
         with:
           python-version: "3.12"
 
+      - name: Validate required secrets
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          FIGMA_ACCESS_TOKEN: ${{ secrets.FIGMA_ACCESS_TOKEN }}
+          FIGMA_TEAM_ID: ${{ secrets.FIGMA_TEAM_ID }}
+          GITHUB_TOKEN: ${{ github.token }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          ISSUE_TITLE: ${{ github.event.issue.title }}
+          ISSUE_BODY: ${{ github.event.issue.body }}
+          REPO_FULL_NAME: ${{ github.repository }}
+        run: |
+          test -n "$ANTHROPIC_API_KEY" || { echo "Missing required secret: ANTHROPIC_API_KEY"; exit 1; }
+          test -n "$FIGMA_ACCESS_TOKEN" || { echo "Missing required secret: FIGMA_ACCESS_TOKEN"; exit 1; }
+          test -n "$FIGMA_TEAM_ID" || { echo "Missing required secret: FIGMA_TEAM_ID"; exit 1; }
+          test -n "$GITHUB_TOKEN" || { echo "Missing required secret: GITHUB_TOKEN"; exit 1; }
+          test -n "$ISSUE_NUMBER" || { echo "Missing required environment variable: ISSUE_NUMBER"; exit 1; }
+          test -n "$ISSUE_TITLE" || { echo "Missing required environment variable: ISSUE_TITLE"; exit 1; }
+          test -n "$ISSUE_BODY" || { echo "Missing required environment variable: ISSUE_BODY"; exit 1; }
+          test -n "$REPO_FULL_NAME" || { echo "Missing required environment variable: REPO_FULL_NAME"; exit 1; }
+
       - name: Install Python dependencies
         run: |
-          pip install "anthropic>=0.49.0" requests
+          pip install -r requirements.txt
 
       - name: Run Design Agent
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           FIGMA_ACCESS_TOKEN: ${{ secrets.FIGMA_ACCESS_TOKEN }}
           FIGMA_TEAM_ID: ${{ secrets.FIGMA_TEAM_ID }}
-          GITHUB_TOKEN: ${{ secrets.GIT_TOKEN }}
+          GITHUB_TOKEN: ${{ github.token }}
           ISSUE_NUMBER: ${{ github.event.issue.number }}
           ISSUE_TITLE: ${{ github.event.issue.title }}
           ISSUE_BODY: ${{ github.event.issue.body }}

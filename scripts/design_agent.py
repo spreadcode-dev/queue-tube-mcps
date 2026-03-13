@@ -23,20 +23,32 @@ import anthropic
 
 # ── Environment ──────────────────────────────────────────────────────────────
 
-ANTHROPIC_API_KEY  = os.environ["ANTHROPIC_API_KEY"]
-FIGMA_ACCESS_TOKEN = os.environ["FIGMA_ACCESS_TOKEN"]
-FIGMA_TEAM_ID      = os.environ.get("FIGMA_TEAM_ID", "")
-GITHUB_TOKEN       = os.environ["GITHUB_TOKEN"]
-ISSUE_NUMBER       = os.environ["ISSUE_NUMBER"]
-ISSUE_TITLE        = os.environ.get("ISSUE_TITLE", "Design Spec")
-ISSUE_BODY         = os.environ.get("ISSUE_BODY", "")
-REPO_FULL_NAME     = os.environ["REPO_FULL_NAME"]   # e.g. "myorg/queuestube"
 
-GITHUB_API_BASE    = "https://api.github.com"
-MODEL              = "claude-sonnet-4-20250514"
+def get_required_env(name: str) -> str:
+    value = os.environ.get(name, "").strip()
+    if value:
+        return value
+    raise RuntimeError(
+        f"Missing required environment variable: {name}. "
+        "Configure the matching GitHub Actions secret before running this job."
+    )
+
+
+ANTHROPIC_API_KEY = get_required_env("ANTHROPIC_API_KEY")
+FIGMA_ACCESS_TOKEN = get_required_env("FIGMA_ACCESS_TOKEN")
+FIGMA_TEAM_ID = os.environ.get("FIGMA_TEAM_ID", "")
+GITHUB_TOKEN = get_required_env("GITHUB_TOKEN")
+ISSUE_NUMBER = get_required_env("ISSUE_NUMBER")
+ISSUE_TITLE = os.environ.get("ISSUE_TITLE", "Design Spec")
+ISSUE_BODY = os.environ.get("ISSUE_BODY", "")
+REPO_FULL_NAME = get_required_env("REPO_FULL_NAME")  # e.g. "myorg/queuestube"
+
+GITHUB_API_BASE = "https://api.github.com"
+MODEL = "claude-sonnet-4-20250514"
 
 
 # ── Figma MCP Server (stdio subprocess) ──────────────────────────────────────
+
 
 def start_figma_mcp() -> subprocess.Popen:
     """Start the Figma MCP server as a local subprocess."""
@@ -57,6 +69,7 @@ def start_figma_mcp() -> subprocess.Popen:
 
 
 # ── Claude via Anthropic SDK (MCP client mode) ────────────────────────────────
+
 
 def run_design_agent(spec: str) -> str:
     """
@@ -148,7 +161,7 @@ Please create the Figma design(s) described above and return the Figma URL.
             "mcp_servers": [
                 {
                     "type": "url",
-                    "url": "https://mcp.figma.com/mcp",   # Figma-hosted MCP endpoint
+                    "url": "https://mcp.figma.com/mcp",  # Figma-hosted MCP endpoint
                     "name": "figma",
                     "authorization_token": FIGMA_ACCESS_TOKEN,
                 }
@@ -165,6 +178,7 @@ Please create the Figma design(s) described above and return the Figma URL.
 
 # ── Parse Figma URL from Claude's response ────────────────────────────────────
 
+
 def extract_figma_url(response_text: str) -> str | None:
     """Extract the FIGMA_URL: ... line from Claude's response."""
     match = re.search(r"FIGMA_URL:\s*(https://www\.figma\.com/\S+)", response_text)
@@ -172,6 +186,7 @@ def extract_figma_url(response_text: str) -> str | None:
 
 
 # ── GitHub — post comment on Issue ───────────────────────────────────────────
+
 
 def post_github_comment(issue_number: str, body: str) -> None:
     url = f"{GITHUB_API_BASE}/repos/{REPO_FULL_NAME}/issues/{issue_number}/comments"
@@ -185,7 +200,9 @@ def post_github_comment(issue_number: str, body: str) -> None:
     print(f"✅ Comment posted: {resp.json()['html_url']}")
 
 
-def build_comment(figma_url: str | None, claude_response: str, issue_number: str) -> str:
+def build_comment(
+    figma_url: str | None, claude_response: str, issue_number: str
+) -> str:
     if figma_url:
         return f"""## 🎨 Design Agent — Figma Update
 
@@ -224,6 +241,7 @@ Please check the [workflow logs](${{GITHUB_SERVER_URL}}/${{GITHUB_REPOSITORY}}/a
 
 
 # ── Entry point ───────────────────────────────────────────────────────────────
+
 
 def main():
     print(f"🚀 Design Agent starting for Issue #{ISSUE_NUMBER}: {ISSUE_TITLE}")
