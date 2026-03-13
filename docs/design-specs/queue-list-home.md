@@ -1,8 +1,8 @@
 # Design Spec — Queue List Home
 
-**Screen:** Queue List Home  
-**Type:** New Screen  
-**Platforms:** Desktop Web, Mobile Web  
+**Screen:** Queue List Home
+**Type:** New Screen
+**Platforms:** Desktop Web, Mobile App
 
 ---
 

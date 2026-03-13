@@ -102,17 +102,98 @@ gh workflow run design-sync.yml \
 ## QueueTube Design Tokens
 
 The agent is pre-loaded with these tokens. Reference them in your specs.
+All tokens follow the **Gluestack UI v3** naming convention — palette scale
+(`{color}-{shade}`) for Tailwind utility classes, and
+`--color-{color}-{shade}` for CSS variables in `config.ts`.
 
-| Token | Value | Usage |
+> QueueTube is **dark-mode first**. The dark-mode values below are the
+> defaults; light-mode overrides are listed where they differ.
+
+### Colors
+
+| Token | Tailwind class | Dark value | Light value | Usage |
+|---|---|---|---|---|
+| `background-dark` | `bg-background-dark` | `#181719` | — | Page background, nav |
+| `background-0` | `bg-background-0` | `#121212` | — | Cards, modals, bottom sheets |
+| `background-50` | `bg-background-50` | `#272625` | — | Elevated surfaces, sidebars |
+| `background-800` | `bg-background-800` | `#f2f1f1` | `#f2f1f1` | Light-mode page background |
+| `primary-500` | `bg-primary-500` | `#E94560` ¹ | `#E94560` ¹ | CTAs, active states, FAB |
+| `primary-400` | `bg-primary-400` | `#f05a72` ¹ | `#f05a72` ¹ | Button hover state |
+| `primary-600` | `bg-primary-600` | `#c73550` ¹ | `#c73550` ¹ | Button pressed state |
+| `secondary-0` | `bg-secondary-0` | `#141414` | — | Overlay backgrounds |
+| `secondary-400` | `bg-secondary-400` | `#383939` | — | Inactive tab, muted surface |
+| `typography-900` | `text-typography-900` | `#f5f5f5` | — | Body text (on dark bg) |
+| `typography-0` | `text-typography-0` | `#171717` | — | Body text (on light bg) |
+| `typography-400` | `text-typography-400` | `#8c8c8c` | `#8c8c8c` | Secondary text, labels |
+| `typography-600` | `text-typography-600` | `#d4d4d4` | `#d4d4d4` | Placeholder, disabled text |
+| `outline-300` | `border-outline-300` | `#737474` | — | Card borders, dividers |
+| `outline-100` | `border-outline-100` | `#414141` | — | Subtle borders on dark bg |
+| `error-400` | `bg-error-400` | `#e63535` | `#e63535` | Destructive actions |
+| `success-500` | `bg-success-500` | `#489766` | `#489766` | Success toasts, confirmed |
+| `info-400` | `bg-info-400` | `#0da6f2` | `#0da6f2` | Info badges, links |
+| `warning-500` | `bg-warning-500` | `#fb954b` | `#fb954b` | Warning alerts |
+| `background-error` | `bg-background-error` | `#422b2b` | — | Error toast background |
+| `background-success` | `bg-background-success` | `#1c2b21` | — | Success toast background |
+| `background-info` | `bg-background-info` | `#1a282e` | — | Info toast background |
+
+¹ `primary` is **overridden** from the Gluestack v3 default (grey scale) to
+QueueTube's accent red `#E94560`. Update `--color-primary-500` in
+`gluestack-ui-provider/config.ts` — see [Customising Theme](#customising-theme).
+
+### Radius
+
+Gluestack v3 defers to **Tailwind CSS border-radius** utilities.
+
+| Tailwind class | Value | Usage |
 |---|---|---|
-| `--color-primary` | `#1A1A2E` | Page backgrounds, nav |
-| `--color-surface` | `#16213E` | Cards, modals |
-| `--color-accent` | `#E94560` | CTAs, active states, badges |
-| `--color-text` | `#EAEAEA` | Body text |
-| `--color-text-muted` | `#8892A4` | Secondary text, labels |
-| `--radius-card` | `12px` | Queue cards, panels |
-| `--radius-btn` | `8px` | Buttons, tags |
-| `--font-family` | `Inter` | All text |
+| `rounded-xl` | `12px` | Queue cards, panels, modals |
+| `rounded-lg` | `8px` | Buttons, input fields, tags |
+| `rounded-full` | `9999px` | Avatars, FAB, badge pills |
+| `rounded-md` | `6px` | Small chips, tooltips |
+
+### Typography
+
+| Tailwind class | Value | Usage |
+|---|---|---|
+| `font-sans` | `Inter` (web) / `Roboto` (native) | All text |
+| `font-roboto` | `Roboto` | Native fallback (added by gluestack) |
+| `text-2xs` | `10px` | Tiny labels, timestamps (added by gluestack) |
+| `text-xs` | `12px` | Captions, badges |
+| `text-sm` | `14px` | Secondary text |
+| `text-base` | `16px` | Body text |
+| `text-xl` | `20px` | Card headings |
+| `text-2xl` | `24px` | Screen titles |
+| `font-extrablack` | `950` | Display headings (added by gluestack) |
+
+### Customising Theme
+
+Override `primary` in `components/ui/gluestack-ui-provider/config.ts`:
+
+```ts
+import { vars } from 'nativewind';
+
+export const config = {
+  dark: vars({
+    '--color-primary-0':   '#7a0a22',
+    '--color-primary-50':  '#8c0f27',
+    '--color-primary-100': '#a01430',
+    '--color-primary-200': '#b8193b',
+    '--color-primary-300': '#cf1f45',
+    '--color-primary-400': '#f05a72',  // hover
+    '--color-primary-500': '#E94560',  // ← QueueTube accent
+    '--color-primary-600': '#c73550',  // pressed
+    '--color-primary-700': '#a02540',
+    '--color-primary-800': '#7a1830',
+    '--color-primary-900': '#550f20',
+    '--color-primary-950': '#3a0a16',
+  }),
+  light: vars({
+    '--color-primary-500': '#E94560',
+    '--color-primary-400': '#f05a72',
+    '--color-primary-600': '#c73550',
+  }),
+};
+```
 
 ---
 
