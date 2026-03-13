@@ -31,7 +31,7 @@ jobs:
 
       - name: Install Python dependencies
         run: |
-          pip install anthropic==0.25.0 requests
+          pip install "anthropic>=0.49.0" requests
 
       - name: Run Design Agent
         env:
