@@ -18,24 +18,16 @@ jobs:
     runs-on: ubuntu-latest
 
     permissions:
-      issues: write   # needed to post the Figma URL comment back
+      issues: write # needed to post the Figma URL comment back
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Set up Node.js (for Figma MCP server)
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-
-      - name: Install Figma MCP server
-        run: npm install -g @figma/mcp
-
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.12'
+          python-version: "3.12"
 
       - name: Install Python dependencies
         run: |
