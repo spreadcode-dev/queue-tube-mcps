@@ -1,0 +1,54 @@
+name: Design Sync — Figma via Claude
+
+on:
+  issues:
+    types: [opened, edited]
+  issue_comment:
+    types: [created]
+
+jobs:
+  generate-design:
+    # Only run when the issue has the 'design-spec' label
+    if: |
+      (github.event_name == 'issues' && contains(github.event.issue.labels.*.name, 'design-spec')) ||
+      (github.event_name == 'issue_comment' &&
+       contains(github.event.issue.labels.*.name, 'design-spec') &&
+       github.event.comment.body == '/design sync')
+
+    runs-on: ubuntu-latest
+
+    permissions:
+      issues: write   # needed to post the Figma URL comment back
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js (for Figma MCP server)
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Figma MCP server
+        run: npm install -g @figma/mcp
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install Python dependencies
+        run: |
+          pip install anthropic==0.25.0 requests
+
+      - name: Run Design Agent
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          FIGMA_ACCESS_TOKEN: ${{ secrets.FIGMA_ACCESS_TOKEN }}
+          FIGMA_TEAM_ID: ${{ secrets.FIGMA_TEAM_ID }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          ISSUE_TITLE: ${{ github.event.issue.title }}
+          ISSUE_BODY: ${{ github.event.issue.body }}
+          REPO_FULL_NAME: ${{ github.repository }}
+        run: python scripts/design_agent.py

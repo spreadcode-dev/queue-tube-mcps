@@ -1,0 +1,117 @@
+name: 🎨 Design Spec
+description: Describe a screen or component for the Design Agent to generate in Figma.
+title: "[Design] "
+labels: ["design-spec"]
+assignees: []
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Fill in this template and the Design Agent will automatically create or update the Figma design.
+        Once submitted, watch for a bot comment with the Figma URL — usually within 2–3 minutes.
+
+  - type: dropdown
+    id: screen-type
+    attributes:
+      label: Screen / Component Type
+      description: What are we designing?
+      options:
+        - New Screen
+        - New Component
+        - Update existing screen
+        - Update existing component
+        - Full flow (multiple screens)
+    validations:
+      required: true
+
+  - type: input
+    id: screen-name
+    attributes:
+      label: Screen or Component Name
+      description: e.g. "Queue List Home", "Video Player", "Add to Queue Modal"
+      placeholder: Queue List Home
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: What does this screen/component do? Who uses it and why?
+      placeholder: |
+        The Queue List Home is the main landing screen after login.
+        It shows all of the user's named queues (e.g. "News", "Music") as cards.
+        The user can tap a queue to open it, or press "+" to create a new one.
+    validations:
+      required: true
+
+  - type: textarea
+    id: elements
+    attributes:
+      label: UI Elements / Layout
+      description: List the elements that must appear, top to bottom or by section.
+      placeholder: |
+        Header:
+        - App logo (left) + user avatar (right)
+        - Search icon (right)
+
+        Body:
+        - Section title "My Queues"
+        - Grid of Queue Cards (2 columns on desktop, 1 on mobile)
+          - Each card: thumbnail, queue name, video count badge, last-played timestamp
+        - Empty state illustration when no queues exist
+
+        FAB (Floating Action Button):
+        - "+" icon, accent colour, fixed bottom-right
+    validations:
+      required: true
+
+  - type: textarea
+    id: interactions
+    attributes:
+      label: Interactions & States
+      description: Hover, loading, empty, error states and key interactions.
+      placeholder: |
+        - Queue Card hover → slight elevation + scale(1.02)
+        - Loading state → skeleton cards
+        - Empty state → illustration + "Create your first queue" CTA
+        - Long-press on card → context menu (Rename, Delete, Share)
+    validations:
+      required: false
+
+  - type: textarea
+    id: references
+    attributes:
+      label: References / Inspiration
+      description: Links to similar UI, existing Figma frames, or screenshot URLs.
+      placeholder: |
+        - Existing Figma file: https://www.figma.com/file/...
+        - Similar pattern: YouTube playlist screen
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: platforms
+    attributes:
+      label: Target Platforms
+      options:
+        - label: Desktop Web (≥1280px)
+          required: false
+        - label: Tablet (768–1279px)
+          required: false
+        - label: Mobile Web (≤767px)
+          required: false
+
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance Criteria
+      description: How do we know the design is done?
+      placeholder: |
+        - [ ] Queue cards visible in a 2-column grid on desktop
+        - [ ] Empty state shown when queue list is empty
+        - [ ] Figma component published to the QueueTube component library
+        - [ ] Design reviewed and approved by @yourname
+    validations:
+      required: false
