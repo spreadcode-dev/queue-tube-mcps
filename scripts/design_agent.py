@@ -47,6 +47,19 @@ GITHUB_API_BASE = "https://api.github.com"
 MODEL = "claude-sonnet-4-20250514"
 
 
+def serialize_content_blocks(content_blocks: list[object]) -> list[dict]:
+    """Convert SDK response blocks into request-safe dictionaries."""
+    serialized_blocks: list[dict] = []
+    for block in content_blocks:
+        if hasattr(block, "model_dump"):
+            serialized_blocks.append(block.model_dump(mode="json"))
+        elif isinstance(block, dict):
+            serialized_blocks.append(block)
+        else:
+            raise TypeError(f"Unsupported content block type: {type(block)!r}")
+    return serialized_blocks
+
+
 # ── Figma MCP Server (stdio subprocess) ──────────────────────────────────────
 
 
@@ -149,25 +162,41 @@ Please create the Figma design(s) described above and return the Figma URL.
     # The SDK will manage the stdio MCP connection automatically when
     # mcp_servers is provided as URL-type servers. For local stdio servers
     # in CI we pass the Figma REST API via tool definitions below as fallback.
-    response = client.messages.create(
-        model=MODEL,
-        max_tokens=4096,
-        system=system_prompt,
-        messages=[{"role": "user", "content": user_message}],
-        # Attach the Figma MCP server (URL mode — requires hosted MCP endpoint).
-        # If your Figma MCP is self-hosted, replace the URL below.
-        # For stdio mode see: scripts/design_agent_stdio.py
-        extra_body={
-            "mcp_servers": [
+    messages = [{"role": "user", "content": user_message}]
+    response = None
+
+    for _ in range(5):
+        response = client.beta.messages.create(
+            model=MODEL,
+            max_tokens=4096,
+            system=system_prompt,
+            messages=messages,
+            mcp_servers=[
                 {
                     "type": "url",
-                    "url": "https://mcp.figma.com/mcp",  # Figma-hosted MCP endpoint
+                    "url": "https://mcp.figma.com/mcp",
                     "name": "figma",
                     "authorization_token": FIGMA_ACCESS_TOKEN,
                 }
-            ]
-        },
-    )
+            ],
+        )
+
+        if response.stop_reason != "pause_turn":
+            break
+
+        messages.append(
+            {
+                "role": "assistant",
+                "content": serialize_content_blocks(response.content),
+            }
+        )
+    else:
+        raise RuntimeError(
+            "Claude reached repeated pause_turn responses without completing."
+        )
+
+    if response is None:
+        raise RuntimeError("Claude did not return a response.")
 
     # Collect all text blocks from the response
     full_text = "\n".join(

@@ -33,7 +33,7 @@ jobs:
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           FIGMA_ACCESS_TOKEN: ${{ secrets.FIGMA_ACCESS_TOKEN }}
-          FIGMA_TEAM_ID: ${{ secrets.FIGMA_TEAM_ID }}
+          FIGMA_TEAM_ID: ${{ vars.FIGMA_TEAM_ID }}
           GITHUB_TOKEN: ${{ github.token }}
           ISSUE_NUMBER: ${{ github.event.issue.number }}
           ISSUE_TITLE: ${{ github.event.issue.title }}
@@ -42,7 +42,6 @@ jobs:
         run: |
           test -n "$ANTHROPIC_API_KEY" || { echo "Missing required secret: ANTHROPIC_API_KEY"; exit 1; }
           test -n "$FIGMA_ACCESS_TOKEN" || { echo "Missing required secret: FIGMA_ACCESS_TOKEN"; exit 1; }
-          test -n "$FIGMA_TEAM_ID" || { echo "Missing required secret: FIGMA_TEAM_ID"; exit 1; }
           test -n "$GITHUB_TOKEN" || { echo "Missing required secret: GITHUB_TOKEN"; exit 1; }
           test -n "$ISSUE_NUMBER" || { echo "Missing required environment variable: ISSUE_NUMBER"; exit 1; }
           test -n "$ISSUE_TITLE" || { echo "Missing required environment variable: ISSUE_TITLE"; exit 1; }
@@ -57,7 +56,7 @@ jobs:
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           FIGMA_ACCESS_TOKEN: ${{ secrets.FIGMA_ACCESS_TOKEN }}
-          FIGMA_TEAM_ID: ${{ secrets.FIGMA_TEAM_ID }}
+          FIGMA_TEAM_ID: ${{ vars.FIGMA_TEAM_ID }}
           GITHUB_TOKEN: ${{ github.token }}
           ISSUE_NUMBER: ${{ github.event.issue.number }}
           ISSUE_TITLE: ${{ github.event.issue.title }}
