@@ -1,0 +1,62 @@
+name: Story Sync — User Story via Claude + Figma
+
+on:
+  issues:
+    types: [labeled]
+  issue_comment:
+    types: [created]
+
+jobs:
+  generate-story:
+    # Trigger on 'story-ready' label, '/story sync' comment, and ensure the issue has the 'story-ready' label
+    if: |
+      (github.event_name == 'issues' && github.event.label.name == 'story-ready') ||
+      (github.event_name == 'issue_comment' &&
+       contains(github.event.issue.labels.*.name, 'story-ready') &&
+       github.event.comment.body == '/story sync')
+
+    runs-on: ubuntu-latest
+
+    permissions:
+      issues: write # post comments + manage labels
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Validate required secrets
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          FIGMA_ACCESS_TOKEN: ${{ secrets.FIGMA_ACCESS_TOKEN }}
+          GITHUB_TOKEN: ${{ github.token || secrets.GITHUB_TOKEN }}
+          ISSUE_NUMBER: ${{ github.event.issue.number || secrets.ISSUE_NUMBER }}
+          ISSUE_TITLE: ${{ github.event.issue.title || secrets.ISSUE_TITLE }}
+          ISSUE_BODY: ${{ github.event.issue.body || secrets.ISSUE_BODY }}
+          REPO_FULL_NAME: ${{ github.repository || secrets.REPO_FULL_NAME }}
+        run: |
+          test -n "$ANTHROPIC_API_KEY"  || { echo "Missing secret: ANTHROPIC_API_KEY"; exit 1; }
+          test -n "$FIGMA_ACCESS_TOKEN" || { echo "Missing secret: FIGMA_ACCESS_TOKEN"; exit 1; }
+          test -n "$GITHUB_TOKEN"       || { echo "Missing: GITHUB_TOKEN"; exit 1; }
+          test -n "$ISSUE_NUMBER"       || { echo "Missing: ISSUE_NUMBER"; exit 1; }
+          test -n "$ISSUE_TITLE"        || { echo "Missing: ISSUE_TITLE"; exit 1; }
+          test -n "$ISSUE_BODY"         || { echo "Missing: ISSUE_BODY"; exit 1; }
+          test -n "$REPO_FULL_NAME"     || { echo "Missing: REPO_FULL_NAME"; exit 1; }
+
+      - name: Install Python dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run Story Agent
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          FIGMA_ACCESS_TOKEN: ${{ secrets.FIGMA_ACCESS_TOKEN }}
+          GITHUB_TOKEN: ${{ github.token || secrets.GITHUB_TOKEN }}
+          ISSUE_NUMBER: ${{ github.event.issue.number || secrets.ISSUE_NUMBER }}
+          ISSUE_TITLE: ${{ github.event.issue.title || secrets.ISSUE_TITLE }}
+          ISSUE_BODY: ${{ github.event.issue.body || secrets.ISSUE_BODY }}
+          REPO_FULL_NAME: ${{ github.repository || secrets.REPO_FULL_NAME }}
+        run: python scripts/story_agent.py

@@ -1,0 +1,21 @@
+{
+  "action": "labeled",
+  "label": {
+    "name": "story-ready"
+  },
+  "issue": {
+    "number": 2,
+    "title": "Queue List Home",
+    "body": "# Design Spec — Queue List Home\n\n**Screen:** Queue List Home\n**Type:** New Screen\n**Platforms:** Desktop Web\n\n## Description\n\nThe Queue List Home is the first screen a user sees after logging in. It displays the default video queue.\n\n\n## UI Elements\n\n### Header (sticky)\n- Left: QueueTube logo (wordmark);\n- Right: search icon + user avatar;\n- Figma Component Design: https://www.figma.com/design/eAP0G94LO7SHwymq1Dw8wI/QueueTube---Design-Kit?node-id=13664-51&t=BmWjotA8V51Ff2g9-0;\n\n### Body\n- Section heading: \"Queue Name\"\n- **Queue Card List**:\n  - Each card contains:\n    - Thumbnail (16:9, auto-generated gradient if no custom image);\n    - The Video Title\n    - Beneath the Title, the Creator and then, the View amount;\n    - Three-dot overflow menu icon (visible on hover/focus);\n    - Figma Content: https://www.figma.com/design/eAP0G94LO7SHwymq1Dw8wI/QueueTube---Design-Kit?node-id=13658-236&t=BmWjotA8V51Ff2g9-0\n\n### Loading State\n- Skeleton animation cards matching the queue list layout;\n- Figma Content: https://www.figma.com/design/eAP0G94LO7SHwymq1Dw8wI/QueueTube---Design-Kit?node-id=13614-2657&t=BmWjotA8V51Ff2g9-0;\n\n### Empty State\n- Heading: \"No Tube yet\";\n- Subtext: \"Paste YouTube link to queue the video.\";\n- Figma Content: https://www.figma.com/design/eAP0G94LO7SHwymq1Dw8wI/QueueTube---Design-Kit?node-id=13658-11&t=BmWjotA8V51Ff2g9-0;\n\n## Acceptance Criteria\n\n- [x] Desktop layout (https://www.figma.com/design/eAP0G94LO7SHwymq1Dw8wI/QueueTube---Design-Kit?node-id=13658-234&t=BmWjotA8V51Ff2g9-0)\n- [x] Empty state visible when queue list returns 0 items\n- [x] All interactive states (hover, loading, empty, overflow menu) documented"
+  },
+  "repository": {
+    "full_name": "spreadcode-dev/queue-tube-mcps",
+    "name": "queue-tube-mcps",
+    "owner": {
+      "login": "spreadcode-dev"
+    }
+  },
+  "sender": {
+    "login": "spreadcode-dev"
+  }
+}

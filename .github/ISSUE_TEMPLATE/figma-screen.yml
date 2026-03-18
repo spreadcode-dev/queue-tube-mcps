@@ -1,0 +1,84 @@
+name: 📐 Figma Screen → User Story
+description: Link a Figma screen or component and generate a developer-ready user story.
+title: "[Story] "
+labels: []
+assignees: []
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Paste the Figma URL for the screen or component you want to convert into a user story.
+        Once you're happy with the issue, add the **`story-ready`** label to kick off the Story Agent.
+        A structured user story with acceptance criteria will be posted as a comment within ~2–3 minutes.
+
+  - type: input
+    id: figma-url
+    attributes:
+      label: Figma URL
+      description: |
+        Share link from Figma with the node selected. Must include `node-id` in the URL.
+        Right-click a frame in Figma → Copy/Paste as → Copy link to selection.
+      placeholder: "https://www.figma.com/design/ABC123/QueueTube-UI?node-id=42-7"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: screen-type
+    attributes:
+      label: Screen / Component Type
+      options:
+        - Full screen
+        - Component / pattern
+        - User flow (multiple screens)
+        - Modal / bottom sheet
+        - Empty / error / loading state
+    validations:
+      required: true
+
+  - type: input
+    id: screen-name
+    attributes:
+      label: Screen or Component Name
+      description: Human-readable name — used as the story title seed.
+      placeholder: "Queue List Home"
+    validations:
+      required: true
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Context / Notes for the Agent
+      description: |
+        Optional. Any design decisions, constraints, or context the agent should know.
+        e.g. "This replaces the old queue drawer", "Only mobile scope", "The red badge is unread count".
+      placeholder: |
+        - The FAB creates a new queue and opens the rename bottom sheet immediately.
+        - The empty state only appears for first-time users.
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: platforms
+    attributes:
+      label: Target Platforms
+      options:
+        - label: Desktop Web (≥1280px)
+        - label: Tablet (768–1279px)
+        - label: Mobile Web (≤767px)
+        - label: React Native (iOS)
+        - label: React Native (Android)
+
+  - type: markdown
+    attributes:
+      value: |
+        ---
+        **Next step:** add the `story-ready` label to trigger the Story Agent.
+
+        **Label workflow:**
+        | Label | Meaning |
+        |---|---|
+        | `story-ready` | Trigger story generation |
+        | `story-draft` | Generated — pending human review |
+        | `story-approved` | Reviewed and moved to backlog |
+        | `story-needs-revision` | Sent back to designer |
