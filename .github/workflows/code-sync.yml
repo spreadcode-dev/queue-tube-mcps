@@ -1,0 +1,85 @@
+name: Code Sync — Context Loading + Code Generation via Claude
+
+on:
+  issues:
+    types: [labeled]
+  issue_comment:
+    types: [created]
+
+jobs:
+  generate-code:
+    # Trigger on 'code-ready' label, '/code sync' comment, and ensure the issue has the 'code-ready' label
+    if: |
+      (github.event_name == 'issues' && github.event.label.name == 'code-ready') ||
+      (github.event_name == 'issue_comment' &&
+       contains(github.event.issue.labels.*.name, 'code-ready') &&
+       github.event.comment.body == '/code sync')
+
+    runs-on: ubuntu-latest
+
+    permissions:
+      issues: write # post comments + manage labels
+      contents: write # create branches + commit files
+      pull-requests: write # open draft PRs
+
+    env:
+      # Configurable token budget for the context loader (default: 6000)
+      MAX_CONTEXT_TOKENS: ${{ vars.MAX_CONTEXT_TOKENS || '6000' }}
+      # Target web app repo searched by the context loader for dynamic file fetching.
+      # This is NOT the pipeline repo (queue-tube-mcps) — it is the QueueTube web app repo.
+      # Future repos (e.g. SERVER_REPO) should follow the same pattern.
+      WEB_REPO: "spreadcode-dev/queue-tube-web"
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Validate required secrets
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          GITHUB_PERSONAL_ACCESS_TOKEN: ${{ secrets.GITHUB_PERSONAL_ACCESS_TOKEN }}
+        run: |
+          test -n "$ANTHROPIC_API_KEY" || { echo "Missing secret: ANTHROPIC_API_KEY"; exit 1; }
+          test -n "$GITHUB_PERSONAL_ACCESS_TOKEN" || { echo "Missing secret: GITHUB_PERSONAL_ACCESS_TOKEN (contents:read scope required)"; exit 1; }
+
+      - name: Install Python dependencies
+        run: pip install -r requirements.txt
+
+      - name: Load codebase context
+        id: context
+        env:
+          GITHUB_PERSONAL_ACCESS_TOKEN: ${{ secrets.GITHUB_PERSONAL_ACCESS_TOKEN }}
+          # GITHUB_STEP_SUMMARY is injected automatically by GitHub Actions — do not set it here
+          MAX_CONTEXT_TOKENS: ${{ env.MAX_CONTEXT_TOKENS }}
+          ISSUE_TITLE: ${{ github.event.issue.title || github.event.comment.issue.title }}
+          ISSUE_BODY: ${{ github.event.issue.body || github.event.comment.issue.body }}
+        run: |
+          python scripts/context_loader.py \
+            --issue-title "$ISSUE_TITLE" \
+            --issue-body  "$ISSUE_BODY" \
+            --repo        "$WEB_REPO" \
+            --max-tokens  "$MAX_CONTEXT_TOKENS" \
+            > context_output.txt
+
+          echo "context_file=context_output.txt" >> "$GITHUB_OUTPUT"
+          echo "✓ Context saved to context_output.txt"
+          wc -c context_output.txt
+
+      - name: Run Code Agent
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          GITHUB_PERSONAL_ACCESS_TOKEN: ${{ secrets.GITHUB_PERSONAL_ACCESS_TOKEN }}
+          GITHUB_TOKEN: ${{ github.token }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          ISSUE_TITLE: ${{ github.event.issue.title }}
+          ISSUE_BODY: ${{ github.event.issue.body }}
+          REPO_FULL_NAME: ${{ github.repository }}
+          MAX_CONTEXT_TOKENS: ${{ env.MAX_CONTEXT_TOKENS }}
+          CONTEXT_FILE: ${{ steps.context.outputs.context_file }}
+        # code_agent.py is implemented in issue #28 and consumes CONTEXT_FILE
+        run: python scripts/code_agent.py

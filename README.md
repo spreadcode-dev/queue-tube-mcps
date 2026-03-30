@@ -12,6 +12,7 @@ specification workflows.
 |---|---|---|
 | [Story Sync](#story-sync-pipeline) | Figma design → GitHub user story | ✅ Active |
 | [Design Sync](#design-sync-pipeline) | GitHub issue spec → Figma design | ⚠️ Pending (Figma write access) |
+| [Code Sync](#code-sync-pipeline) | Story issue → branch + PR | 🔧 Context loader active, code agent pending (#28) |
 
 ---
 
@@ -217,6 +218,186 @@ act issues \
 
 ---
 
+---
+
+## Code Sync Pipeline
+
+> **Story issue → codebase context → code generation → branch + draft PR**
+
+The Code Sync agent picks up a `story-approved` issue, loads a curated snapshot of
+the QueueTube codebase, and passes it to Claude to generate integrable code.
+The context loader runs first to ensure Claude always has the minimum necessary
+context to produce code that matches existing architecture, imports, and tokens.
+
+### Flow
+
+```
+GitHub Issue (story-approved)
+        │
+        │  label: code-ready  ← human gate
+        ▼
+GitHub Actions
+(.github/workflows/code-sync.yml)
+        │
+        ├── context_loader.py
+        │        ├── Layer 1: docs/code-context.md (curated baseline, always injected)
+        │        ├── Layer 2: repo tree scan → up to 3 matching source files fetched
+        │        └── Layer 3: assemble + write GitHub Actions step summary
+        │
+        ├── code_agent.py (issue #28 — pending)
+        │        └── Claude generates code from assembled context + story
+        │
+        └── Branch + commit + draft PR created
+```
+
+### Label State Machine
+
+| Label | Applied by | Meaning |
+|---|---|---|
+| `story-approved` | Human | Story reviewed — eligible for code generation |
+| `code-ready` | Human | Trigger Code Sync agent |
+| `code-review` | Code Agent | Draft PR created — pending human review |
+
+### Context Loading Strategy
+
+Context is assembled in three layers before code generation begins:
+
+**Layer 1 — Curated Baseline (always injected)**
+`docs/code-context.md` contains a manually maintained orientation guide:
+- Top-2-level directory tree
+- `package.json` dependency list
+- Gluestack UI v3 provider config excerpt
+- A reference component example
+- Naming conventions and file organisation rules
+
+Token budget: **≤ 2,000 tokens**. Must be updated by the team when the project
+structure changes significantly.
+
+**Layer 2 — Dynamic File Fetching (story-driven)**
+The loader scans the story title and body for PascalCase identifiers (e.g.
+`QueueCard`, `VideoItem`), searches the repo tree via the GitHub REST API, and
+fetches up to **3 matching source files**. If no files match, the agent proceeds
+with the baseline only — no error is thrown.
+
+**Layer 3 — Assembly + Logging**
+Final context order: `(1) baseline → (2) dynamic files → (3) story content`.
+Total context is capped at `MAX_CONTEXT_TOKENS` (default: `6000`). A step summary
+is written to GitHub Actions on every run listing token count, files included, and
+any unmatched identifiers.
+
+### Usage
+
+#### 1. Set GitHub Secrets
+
+| Secret | Purpose |
+|---|---|
+| `ANTHROPIC_API_KEY` | Anthropic API key for code generation |
+| `GH_PAT` | GitHub PAT with `contents:read` scope for repo tree fetching |
+
+#### 2. (Optional) Set Repository Variable
+
+Set `MAX_CONTEXT_TOKENS` in **Settings → Variables → Actions** to override the
+default context budget of `6000` tokens.
+
+#### 3. Trigger Code Generation
+
+Add the `code-ready` label to a `story-approved` issue.
+
+The workflow will:
+1. Load and log the context block (baseline + dynamic files)
+2. Run the code agent (issue #28)
+3. Open a draft PR tagged `code-review`
+
+#### 4. Re-run on Demand
+
+Post a comment containing exactly:
+
+```
+/code sync
+```
+
+#### 5. Local Test Mode (context loader only)
+
+```bash
+source .venv/bin/activate
+
+# Baseline only (no GitHub calls)
+python scripts/context_loader.py --issue-body "Build a QueueCard component"
+
+# With dynamic file fetching
+GH_PAT=<your-token> python scripts/context_loader.py \
+  --issue-title "QueueCard redesign" \
+  --issue-body  "Update QueueCard to show VideoItem count below the title." \
+  --repo        spreadcode-dev/queue-tube \
+  --max-tokens  6000
+```
+
+The script prints the full assembled context and a token summary without calling
+Claude or creating any GitHub resources.
+
+#### 6. Simulate the Full Actions Pipeline with `act`
+
+[`act`](https://github.com/nektos/act) runs GitHub Actions locally inside Docker.
+Use this to verify the workflow YAML, environment variable wiring, and step ordering
+before merging to `main`.
+
+**Prerequisites:** Docker running, `act` installed (`brew install act`).
+
+**1. Edit `tests/code-sync-event.json`** to match the story issue you want to test:
+
+```json
+{
+  "action": "labeled",
+  "label": { "name": "code-ready" },
+  "issue": {
+    "number": 10,
+    "title": "[Story] Display QueueCard list on the Queue List Home screen",
+    "body": "... story body with component names like QueueCard, VideoItem ..."
+  },
+  "repository": {
+    "full_name": "spreadcode-dev/queue-tube-mcps",
+    "name": "queue-tube-mcps",
+    "owner": { "login": "spreadcode-dev" }
+  },
+  "sender": { "login": "spreadcode-dev" }
+}
+```
+
+The `issue.body` should contain the story's acceptance criteria and technical notes — the context loader
+extracts PascalCase component identifiers (e.g. `QueueCard`, `VideoItem`) from this text.
+
+**2. Run `act`** with your `.env` as the secret file:
+
+```bash
+act issues \
+  -e tests/code-sync-event.json \
+  --container-architecture linux/amd64 \
+  --secret-file .env
+```
+
+> **Note:** The `Post Set up Python` step will fail with `node: command not found` —
+> this is a known `act` limitation with `setup-python@v5`'s cache step and does
+> not affect the workflow logic. All pipeline steps pass cleanly.
+>
+> **Note:** The `Run Code Agent` step will fail until `scripts/code_agent.py` is
+> implemented (issue #28). The `Load codebase context` step runs and logs independently.
+
+---
+
+### Maintaining the Baseline
+
+`docs/code-context.md` is the agent's orientation guide. Keep it accurate:
+
+- **Update** the directory tree when new packages or apps are added
+- **Update** the dependency list when key packages change
+- **Update** the reference component when conventions evolve
+- **Never let it exceed 2,000 tokens** — check with:
+  ```bash
+  python -c "print(len(open('docs/code-context.md').read()) // 4, 'tokens')"
+  ```
+
+---
+
 ## Design Sync Pipeline
 
 > **GitHub issue spec → Figma design** *(write path — pending Figma MCP write access)*
@@ -237,17 +418,21 @@ queue-tube-mcps/
 ├── .github/
 │   ├── workflows/
 │   │   ├── story-sync.yml       # Figma → User Story pipeline
-│   │   └── design-sync.yml      # Spec → Figma pipeline
+│   │   ├── design-sync.yml      # Spec → Figma pipeline
+│   │   └── code-sync.yml        # Story → Code pipeline
 │   └── ISSUE_TEMPLATE/
 │       ├── figma-screen.yml     # Template for Story Sync
 │       └── design-spec.yml      # Template for Design Sync
 │
 ├── scripts/
 │   ├── story_agent.py           # Story Sync agent (Figma REST API + Claude)
-│   └── design_agent.py          # Design Sync agent (Claude + Figma MCP)
+│   ├── design_agent.py          # Design Sync agent (Claude + Figma MCP)
+│   ├── context_loader.py        # Code Sync — context loading module
+│   └── code_agent.py            # Code Sync — code generation (issue #28)
 │
 ├── docs/
 │   ├── DESIGN_PIPELINE.md       # Design Sync documentation + design tokens
+│   ├── code-context.md          # Curated baseline for Code Sync agent (maintained by team)
 │   └── design-specs/            # Markdown specs for offline/batch use
 │
 └── requirements.txt
