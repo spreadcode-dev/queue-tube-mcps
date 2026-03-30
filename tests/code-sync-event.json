@@ -1,0 +1,21 @@
+{
+  "action": "labeled",
+  "label": {
+    "name": "code-ready"
+  },
+  "issue": {
+    "number": 10,
+    "title": "[Story] Display QueueCard list on the Queue List Home screen",
+    "body": "### User Story: Display QueueCard list on the Queue List Home screen\n\n**As a** logged-in user\n**I want to** see my video queue displayed as a list of QueueCard items on the Queue List Home screen\n**So that** I can browse and manage the videos I have queued\n\n#### Acceptance Criteria\n- [ ] QueueCard renders with thumbnail (16:9), video title, creator name, and view count\n- [ ] QueueCard uses `bg-background-0` (#121212) background with `border-outline-300` border and `rounded-xl` radius\n- [ ] Active QueueCard uses a `border-l-4 border-l-primary-500` (#E94560) left accent\n- [ ] VideoItem overflow menu icon is visible on hover/focus only\n- [ ] Loading state renders skeleton cards matching the QueueCard layout\n- [ ] Empty state displays heading \"No Tube yet\" and subtext \"Paste YouTube link to queue the video.\"\n- [ ] Empty state is shown when the API returns 0 items\n\n#### Technical Notes\n- **Components:** QueueCard, VideoItem, QueueListScreen\n- **Tokens used:** `bg-background-0`, `border-outline-300`, `rounded-xl`, `border-l-primary-500`, `text-typography-900`, `text-typography-400`\n- **Platform:** Web (desktop-first ≥1280px)\n- **Edge cases:** empty state, loading skeleton, error state, offline behaviour\n\n#### Figma Reference\n- Node: 13658-234\n- File: eAP0G94LO7SHwymq1Dw8wI"
+  },
+  "repository": {
+    "full_name": "spreadcode-dev/queue-tube-mcps",
+    "name": "queue-tube-mcps",
+    "owner": {
+      "login": "spreadcode-dev"
+    }
+  },
+  "sender": {
+    "login": "spreadcode-dev"
+  }
+}
