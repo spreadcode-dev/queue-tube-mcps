@@ -507,8 +507,9 @@ def deliver(
         pr = update_pr(web_owner, web_name, pr_number_existing, pr_body, pat)
 
     # ── Step 5: Labels ────────────────────────────────────────────────────────
-    add_label(mcps_owner, mcps_name, issue_number, "code-draft", gh_token)
-    remove_label(mcps_owner, mcps_name, issue_number, "code-ready", gh_token)
+    # Issue lives in SOURCE_REPO (e.g. queue-tube-web) — must use PAT for cross-repo access
+    add_label(web_owner, web_name, issue_number, "code-draft", pat)
+    remove_label(web_owner, web_name, issue_number, "code-ready", pat)
 
     # ── Step 6: Step summary ──────────────────────────────────────────────────
     write_step_summary(
