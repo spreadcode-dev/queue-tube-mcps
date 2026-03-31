@@ -477,15 +477,15 @@ def main() -> None:
     baseline = load_baseline()
     baseline_tokens = estimate_tokens(baseline)
 
-    # Layer 2: dynamic fetching only if --repo is given and GH_PERSONAL_ACCESS_TOKEN is set
+    # Layer 2: dynamic fetching only if --repo is given and GITHUB_PERSONAL_ACCESS_TOKEN is set
     dynamic_files: list[tuple[str, str]] = []
     unmatched: list[str] = []
 
     if args.repo and "/" in args.repo:
-        gh_token = _get_env("GH_PERSONAL_ACCESS_TOKEN")
+        gh_token = _get_env("GITHUB_PERSONAL_ACCESS_TOKEN")
         if not gh_token:
             print(
-                "⚠️  GH_PERSONAL_ACCESS_TOKEN not set — skipping dynamic file fetching.",
+                "⚠️  GITHUB_PERSONAL_ACCESS_TOKEN not set — skipping dynamic file fetching.",
                 file=sys.stderr,
             )
         else:
