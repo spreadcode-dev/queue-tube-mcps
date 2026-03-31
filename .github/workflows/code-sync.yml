@@ -1,40 +1,54 @@
 name: Code Sync — Context Loading + Code Generation via Claude
 
 on:
-  issues:
-    types: [labeled]
-  issue_comment:
-    types: [created]
+  # Called by any QueueTube app repo (queue-tube-web, queue-tube-serverless, …)
+  # when a story issue is labeled 'code-ready' or '/code sync' is posted.
+  workflow_call:
+    inputs:
+      source_repo:
+        description: "Repo where the issue lives (e.g. spreadcode-dev/queue-tube-web)"
+        required: true
+        type: string
+      issue_number:
+        description: "Source story issue number"
+        required: true
+        type: string
+      issue_title:
+        description: "Source story issue title"
+        required: true
+        type: string
+      issue_body:
+        description: "Source story issue body"
+        required: true
+        type: string
+    secrets:
+      ANTHROPIC_API_KEY:
+        required: true
+      GH_PERSONAL_ACCESS_TOKEN:
+        required: true
 
 jobs:
   generate-code:
-    # Trigger on 'code-ready' label, '/code sync' comment, and ensure the issue has the 'code-ready' label
-    if: |
-      (github.event_name == 'issues' && github.event.label.name == 'code-ready') ||
-      (github.event_name == 'issue_comment' &&
-       contains(github.event.issue.labels.*.name, 'code-ready') &&
-       github.event.comment.body == '/code sync')
-
     runs-on: ubuntu-latest
 
     permissions:
-      issues: write # post comments + manage labels
-      contents: write # create branches + commit files
-      pull-requests: write # open draft PRs
+      issues: write        # apply labels on queue-tube-web issues via GITHUB_TOKEN
+      contents: write      # not used directly — GH_PERSONAL_ACCESS_TOKEN handles queue-tube-web
+      pull-requests: write # not used directly — GH_PERSONAL_ACCESS_TOKEN handles queue-tube-web
 
     env:
-      # Configurable token budget for the context loader (default: 6000)
-      MAX_CONTEXT_TOKENS: ${{ vars.MAX_CONTEXT_TOKENS || '6000' }}
-      # Pipeline repo — where story issues and labels live (this repo)
-      MCPS_REPO: ${{ github.repository }}
-      # Target web app repo — where branches, commits, and PRs are created.
-      # This is NOT the pipeline repo (queue-tube-mcps).
-      # Future repos (e.g. SERVER_REPO) should follow the same pattern.
-      WEB_REPO: "spreadcode-dev/queue-tube-web"
+      MAX_CONTEXT_TOKENS: "6000"
+      # Pipeline repo — holds scripts and docs (this repo, always)
+      MCPS_REPO: "spreadcode-dev/queue-tube-mcps"
+      # Source app repo — the caller passes this; drives context fetching and delivery
+      SOURCE_REPO: ${{ inputs.source_repo }}
 
     steps:
-      - name: Checkout repository
+      - name: Checkout queue-tube-mcps (pipeline scripts)
         uses: actions/checkout@v4
+        with:
+          repository: spreadcode-dev/queue-tube-mcps
+          token: ${{ secrets.GH_PERSONAL_ACCESS_TOKEN }}
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -46,8 +60,8 @@ jobs:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           GH_PERSONAL_ACCESS_TOKEN: ${{ secrets.GH_PERSONAL_ACCESS_TOKEN }}
         run: |
-          test -n "$ANTHROPIC_API_KEY" || { echo "Missing secret: ANTHROPIC_API_KEY"; exit 1; }
-          test -n "$GH_PERSONAL_ACCESS_TOKEN" || { echo "Missing secret: GH_PERSONAL_ACCESS_TOKEN (contents:read scope required)"; exit 1; }
+          test -n "$ANTHROPIC_API_KEY"           || { echo "Missing secret: ANTHROPIC_API_KEY"; exit 1; }
+          test -n "$GH_PERSONAL_ACCESS_TOKEN"    || { echo "Missing secret: GH_PERSONAL_ACCESS_TOKEN"; exit 1; }
 
       - name: Install Python dependencies
         run: pip install -r requirements.txt
@@ -56,15 +70,14 @@ jobs:
         id: context
         env:
           GH_PERSONAL_ACCESS_TOKEN: ${{ secrets.GH_PERSONAL_ACCESS_TOKEN }}
-          # GITHUB_STEP_SUMMARY is injected automatically by GitHub Actions — do not set it here
           MAX_CONTEXT_TOKENS: ${{ env.MAX_CONTEXT_TOKENS }}
-          ISSUE_TITLE: ${{ github.event.issue.title || github.event.comment.issue.title }}
-          ISSUE_BODY: ${{ github.event.issue.body || github.event.comment.issue.body }}
+          ISSUE_TITLE: ${{ inputs.issue_title }}
+          ISSUE_BODY: ${{ inputs.issue_body }}
         run: |
           python scripts/context_loader.py \
             --issue-title "$ISSUE_TITLE" \
             --issue-body  "$ISSUE_BODY" \
-            --repo        "$WEB_REPO" \
+            --repo        "$SOURCE_REPO" \
             --max-tokens  "$MAX_CONTEXT_TOKENS" \
             > context_output.txt
 
@@ -75,16 +88,13 @@ jobs:
       - name: Run Code Agent
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-          # GH_PERSONAL_ACCESS_TOKEN — needs contents:write + pull-requests:write on WEB_REPO
           GH_PERSONAL_ACCESS_TOKEN: ${{ secrets.GH_PERSONAL_ACCESS_TOKEN }}
-          # GITHUB_TOKEN — auto-provided; needs issues:write on MCPS_REPO (this repo)
           GITHUB_TOKEN: ${{ github.token }}
-          ISSUE_NUMBER: ${{ github.event.issue.number }}
-          ISSUE_TITLE: ${{ github.event.issue.title }}
-          ISSUE_BODY: ${{ github.event.issue.body }}
-          WEB_REPO: ${{ env.WEB_REPO }}
+          ISSUE_NUMBER: ${{ inputs.issue_number }}
+          ISSUE_TITLE: ${{ inputs.issue_title }}
+          ISSUE_BODY: ${{ inputs.issue_body }}
+          SOURCE_REPO: ${{ env.SOURCE_REPO }}
           MCPS_REPO: ${{ env.MCPS_REPO }}
           MAX_CONTEXT_TOKENS: ${{ env.MAX_CONTEXT_TOKENS }}
           CONTEXT_FILE: ${{ steps.context.outputs.context_file }}
-        # code_agent.py orchestrates code generation (Claude) + git_delivery.py
         run: python scripts/code_agent.py

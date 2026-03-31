@@ -12,12 +12,12 @@ Triggered by GitHub Actions (.github/workflows/code-sync.yml) when the
 
 Environment variables consumed:
   ANTHROPIC_API_KEY              — Anthropic API key
-  GH_PERSONAL_ACCESS_TOKEN   — PAT with contents:write + pull-requests:write on WEB_REPO
+  GH_PERSONAL_ACCESS_TOKEN   — PAT with contents:write + pull-requests:write on SOURCE_REPO
   GITHUB_TOKEN                   — auto-provided; issues:write on MCPS_REPO
   ISSUE_NUMBER                   — source story issue number
   ISSUE_TITLE                    — source story issue title
   ISSUE_BODY                     — source story issue body
-  WEB_REPO                       — target app repo (e.g. spreadcode-dev/queue-tube-web)
+  SOURCE_REPO                       — target app repo (e.g. spreadcode-dev/queue-tube-web)
   MCPS_REPO                      — pipeline repo   (e.g. spreadcode-dev/queue-tube-mcps)
   MAX_CONTEXT_TOKENS             — context token budget (default: 6000)
   CONTEXT_FILE                   — optional: path to pre-assembled context (skips loader)
@@ -181,7 +181,7 @@ def main() -> None:
     issue_number = _require_env("ISSUE_NUMBER")
     issue_title = _get_env("ISSUE_TITLE", "Untitled")
     issue_body = _get_env("ISSUE_BODY", "")
-    web_repo = _require_env("WEB_REPO")
+    web_repo = _require_env("SOURCE_REPO")
     max_tokens = int(_get_env("MAX_CONTEXT_TOKENS", "6000"))
 
     story_text = f"{issue_title}\n\n{issue_body}".strip()

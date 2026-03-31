@@ -30,8 +30,11 @@ import requests
 
 GITHUB_API_BASE = "https://api.github.com"
 
-# Path to the curated baseline, relative to the repo root
+# Path to the curated baseline, relative to the repo root (fallback)
 BASELINE_PATH = Path(__file__).parent.parent / "docs" / "code-context.md"
+
+# Path in the source repo where a project-specific baseline may live
+SOURCE_BASELINE_FILE = "docs/code-context.md"
 
 # Maximum number of dynamic files fetched per run
 MAX_DYNAMIC_FILES = 3
@@ -77,20 +80,62 @@ def estimate_tokens(text: str) -> int:
 # ── Layer 1: Curated baseline ─────────────────────────────────────────────────
 
 
-def load_baseline() -> str:
+def _fetch_remote_baseline(owner: str, repo: str, gh_token: str) -> str | None:
     """
-    Read docs/code-context.md and return its content.
+    Try to fetch docs/code-context.md from the source repo.
+    Returns the file content on success, None if the file doesn't exist or
+    any network/auth error occurs (soft failure — caller falls back to local).
+    """
+    import base64
+
+    headers = {
+        "Authorization": f"Bearer {gh_token}",
+        "Accept": "application/vnd.github+json",
+        "X-GitHub-Api-Version": "2022-11-28",
+    }
+    url = f"{GITHUB_API_BASE}/repos/{owner}/{repo}/contents/{SOURCE_BASELINE_FILE}"
+    try:
+        resp = requests.get(url, headers=headers, timeout=15)
+        if resp.status_code == 404:
+            return None
+        resp.raise_for_status()
+        raw = base64.b64decode(resp.json()["content"]).decode("utf-8", errors="replace")
+        return raw
+    except Exception as exc:
+        print(f"⚠️  Could not fetch remote baseline: {exc}", file=sys.stderr)
+        return None
+
+
+def load_baseline(owner: str = "", repo: str = "", gh_token: str = "") -> str:
+    """
+    Load the curated baseline context.
+
+    Priority:
+      1. docs/code-context.md from the SOURCE_REPO (if owner/repo/token are provided)
+      2. docs/code-context.md bundled in queue-tube-mcps (fallback)
+
     Warns (but does not raise) if the token budget is exceeded.
     """
-    if not BASELINE_PATH.exists():
-        raise FileNotFoundError(
-            f"Curated baseline not found at {BASELINE_PATH}. "
-            "Create docs/code-context.md before running the Code Sync agent."
-        )
+    content: str | None = None
+    source_label = ""
 
-    content = BASELINE_PATH.read_text(encoding="utf-8")
+    if owner and repo and gh_token:
+        content = _fetch_remote_baseline(owner, repo, gh_token)
+        if content is not None:
+            source_label = f"{owner}/{repo}"
+            print(f"✓ Baseline loaded from {source_label} ({SOURCE_BASELINE_FILE})")
+
+    if content is None:
+        if not BASELINE_PATH.exists():
+            raise FileNotFoundError(
+                f"Curated baseline not found at {BASELINE_PATH}. "
+                "Create docs/code-context.md before running the Code Sync agent."
+            )
+        content = BASELINE_PATH.read_text(encoding="utf-8")
+        source_label = "queue-tube-mcps (local fallback)"
+        print(f"✓ Baseline loaded from {source_label}")
+
     tokens = estimate_tokens(content)
-
     if tokens > BASELINE_TOKEN_LIMIT:
         print(
             f"⚠️  Baseline token budget exceeded: {tokens} tokens "
@@ -98,7 +143,7 @@ def load_baseline() -> str:
             file=sys.stderr,
         )
 
-    print(f"✓ Baseline loaded: {len(content):,} chars (~{tokens} tokens)")
+    print(f"  ({len(content):,} chars, ~{tokens} tokens)")
     return content
 
 
@@ -401,7 +446,7 @@ def load_context(
     print("── Context Loader ──────────────────────────────────────────────")
 
     # Layer 1
-    baseline = load_baseline()
+    baseline = load_baseline(owner, repo, gh_token)
     baseline_tokens = estimate_tokens(baseline)
 
     # Layer 2
@@ -473,13 +518,10 @@ def main() -> None:
     print(f"   Story text length : {len(story_text):,} chars")
     print(f"   Max tokens        : {max_tokens}")
 
-    # Layer 1: always load baseline
-    baseline = load_baseline()
-    baseline_tokens = estimate_tokens(baseline)
-
     # Layer 2: dynamic fetching only if --repo is given and GH_PERSONAL_ACCESS_TOKEN is set
     dynamic_files: list[tuple[str, str]] = []
     unmatched: list[str] = []
+    owner, repo, gh_token = "", "", ""
 
     if args.repo and "/" in args.repo:
         gh_token = _get_env("GH_PERSONAL_ACCESS_TOKEN")
@@ -493,12 +535,14 @@ def main() -> None:
             dynamic_files, unmatched = load_dynamic_files(
                 story_text, owner, repo, gh_token
             )
-    else:
-        if story_text:
-            identifiers = extract_identifiers(story_text)
-            print(
-                f"✓ Identifiers found (no repo specified, skipping fetch): {identifiers or '(none)'}"
-            )
+
+    if not args.repo and story_text:
+        identifiers = extract_identifiers(story_text)
+        print(f"✓ Identifiers found (no repo specified, skipping fetch): {identifiers or '(none)'}")
+
+    # Layer 1: load baseline — prefer source repo, fall back to local
+    baseline = load_baseline(owner, repo, gh_token)
+    baseline_tokens = estimate_tokens(baseline)
 
     # Layer 3: assemble + print
     context = assemble_context(
